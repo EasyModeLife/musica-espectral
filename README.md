@@ -82,7 +82,5 @@ reproductor-musica/
 
 ## Licencia
 
-Este proyecto está bajo la licencia [Nombre de la Licencia - Enlaza al archivo de licencia si es necesario].
-content_copy
-download
+Este proyecto está bajo la licencia MIT.
 Use code with caution.
