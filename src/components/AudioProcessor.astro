@@ -2,10 +2,12 @@
 // AudioProcessor.astro
 
 interface Props {
-  // Puedes añadir props si las necesitas en el futuro
+  transparentBackground?: number; // 0 para fondo normal, 1 para fondo transparente
 }
 
-const {} = Astro.props;
+const { transparentBackground = 0 } = Astro.props; // Valor por defecto: 0 (fondo normal)
+
+const isTransparent = transparentBackground === 1;
 ---
 
 <div class="audio-processor" id="audioProcessor">
@@ -31,11 +33,19 @@ const {} = Astro.props;
 </div>
 
 <style>
+  
+:root {
+  --audio-processor-color-top: hsl(180, 100%, 90%); /* Valor inicial */
+  --audio-processor-color-bottom: hsl(180, 100%, 10%); /* Valor inicial */
+}
+
 .audio-processor {
-  border: 1px solid gray;
+  border: 0px solid gray;
   padding: 1rem;
   margin: 1rem;
-  background: linear-gradient(to bottom, var(--color-top), var(--color-bottom));
+  /* Usar una variable CSS para controlar la transparencia */
+  background: linear-gradient(to bottom, var(--audio-processor-color-top), var(--audio-processor-color-bottom));
+  background: var(--audio-processor-bg);
   transition: background 0.5s ease; /* Transición suave del color de fondo */
 }
 
@@ -384,11 +394,9 @@ const {} = Astro.props;
         const maxHue = 400; // Rojo
         const hue = minHue + (maxHue - minHue) * amp * 5; // Interpolar entre azul y rojo
 
-        const colorTop = `hsl(${hue}, 100%, 90%)`; // Color más claro en la parte superior
-        const colorBottom = `hsl(${hue}, 100%, 10%)`; // Color más oscuro en la parte inferior
-
-        // Establecer directamente el estilo de fondo con los colores calculados
-        audioProcessor.style.background = `linear-gradient(to bottom, ${colorTop}, ${colorBottom})`;
+        // Actualizar las variables CSS
+        document.documentElement.style.setProperty('--audio-processor-color-top', `hsl(${hue}, 100%, 90%)`);
+        document.documentElement.style.setProperty('--audio-processor-color-bottom', `hsl(${hue}, 100%, 10%)`);
     }
 
     //Escuchar cambios en el slider
@@ -469,4 +477,11 @@ const {} = Astro.props;
       loadDefaultSong();
 
     visualize(); // Iniciar la visualización
+
+    // Establecer el fondo según la variable isTransparent
+    const audioProcessorBg = isTransparent
+    ? 'transparent' // Fondo transparente si isTransparent es true
+    : `linear-gradient(to bottom, var(--audio-processor-color-top), var(--audio-processor-color-bottom))`;
+
+    document.documentElement.style.setProperty('--audio-processor-bg', audioProcessorBg);
 </script>

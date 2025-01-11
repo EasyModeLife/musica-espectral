@@ -1,4 +1,5 @@
 ---
+// index.astro
 import Layout from '../layouts/Layout.astro';
 import AudioProcessor from '../components/AudioProcessor.astro';
 import Header from '../components/Header.astro';
@@ -15,8 +16,9 @@ import Header from '../components/Header.astro';
 
 <style>
   .background {
-    background-color: hsl(39, 100%, 95%); /* Color blanco concha */
-    min-height: 100vh; /* Asegura que el fondo cubra toda la altura de la pantalla */
+    /* Usar las variables CSS definidas en AudioProcessor.astro */
+    background: linear-gradient(to bottom, var(--audio-processor-color-top), var(--audio-processor-color-bottom));
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
   }
@@ -25,6 +27,6 @@ import Header from '../components/Header.astro';
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-grow: 1; /* Permite que el main ocupe el espacio disponible */
+    flex-grow: 1;
   }
 </style>

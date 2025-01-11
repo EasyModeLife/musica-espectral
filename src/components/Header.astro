@@ -3,76 +3,89 @@
 ---
 
 <header>
-    <div class="header-content">
-      <a
-        href="https://github.com/EasyModeLife"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <img
-          src="https://simpleicons.org/icons/github.svg"
-          alt="GitHub"
-          class="icon"
-        />
-      </a>
-      <a
-        href="https://github.com/EasyModeLife"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <img
-          src="https://simpleicons.org/icons/paypal.svg"
-          alt="PayPal"
-          class="icon"
-        />
-      </a>
-    </div>
-  </header>
-  
-  <style>
-    header {
-      background-color: hsl(39, 80%, 85%); /* Color blanco concha más oscuro */
-      padding: 1rem;
-      position: fixed; /* Fija el header en la parte superior */
-      top: 0;
-      left: 0;
-      width: 100%;
-      z-index: 10; /* Asegura que el header esté encima del contenido */
-      transition: transform 0.3s ease; /* Transición suave para ocultar/mostrar */
+  <div class="header-content">
+    <a
+      href="https://github.com/EasyModeLife"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <img
+        src="https://simpleicons.org/icons/github.svg"
+        alt="GitHub"
+        class="icon"
+      />
+    </a>
+    <a
+      href="https://github.com/EasyModeLife"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <img
+        src="https://simpleicons.org/icons/paypal.svg"
+        alt="PayPal"
+        class="icon"
+      />
+    </a>
+  </div>
+</header>
+
+<style>
+  header {
+    background-color:  hsl(var(--hue), 80%, calc(var(--lightness) + 10%));
+    padding: 1rem;
+    position: fixed; /* Fija el header en la parte superior */
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 10; /* Asegura que el header esté encima del contenido */
+    transition: transform 0.3s ease; /* Transición suave para ocultar/mostrar */
+  }
+
+  .header-content {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 200px; /* Ancho máximo para los íconos */
+    margin: 0 auto; /* Centra los íconos */
+  }
+
+  .icon {
+    width: 32px;
+    height: 32px;
+    fill: black; /* Color de los íconos */
+  }
+
+  header.hidden {
+    transform: translateY(-100%); /* Oculta el header arriba */
+  }
+</style>
+
+<script is:inline>
+  let prevScrollPos = window.pageYOffset;
+
+  window.onscroll = function () {
+    const currentScrollPos = window.pageYOffset;
+    const header = document.querySelector('header');
+
+    if (prevScrollPos > currentScrollPos) {
+      header.classList.remove('hidden'); // Mostrar header al subir
+    } else {
+      header.classList.add('hidden'); // Ocultar header al bajar
     }
-  
-    .header-content {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      max-width: 200px; /* Ancho máximo para los íconos */
-      margin: 0 auto; /* Centra los íconos */
-    }
-  
-    .icon {
-      width: 32px;
-      height: 32px;
-      fill: black; /* Color de los íconos */
-    }
-  
-    header.hidden {
-      transform: translateY(-100%); /* Oculta el header arriba */
-    }
-  </style>
-  
-  <script is:inline>
-    let prevScrollPos = window.pageYOffset;
-  
-    window.onscroll = function () {
-      const currentScrollPos = window.pageYOffset;
-      const header = document.querySelector('header');
-  
-      if (prevScrollPos > currentScrollPos) {
-        header.classList.remove('hidden'); // Mostrar header al subir
-      } else {
-        header.classList.add('hidden'); // Ocultar header al bajar
-      }
-  
-      prevScrollPos = currentScrollPos;
-    };
-  </script>
+
+    prevScrollPos = currentScrollPos;
+  };
+
+  // Obtener la tonalidad (hue) y la luminosidad (lightness) de la variable CSS
+  const rootStyles = getComputedStyle(document.documentElement);
+  const colorBottom = rootStyles.getPropertyValue('--audio-processor-color-bottom');
+
+  // Extraer la tonalidad y la luminosidad del valor de la variable CSS
+  const match = colorBottom.match(/hsl\((\d+), \d+%, (\d+)%\)/);
+  const hue = match ? match[1] : '0';
+  const lightness = match ? match[2] : '0';
+
+  // Establecer las nuevas variables CSS para el Header
+  document.documentElement.style.setProperty('--hue', hue);
+  document.documentElement.style.setProperty('--lightness', lightness);
+</script>
