@@ -1,0 +1,472 @@
+---
+// AudioProcessor.astro
+
+interface Props {
+  // Puedes añadir props si las necesitas en el futuro
+}
+
+const {} = Astro.props;
+---
+
+<div class="audio-processor" id="audioProcessor">
+  <div class="dropzone" id="dropzone">
+    Arrastra un archivo de audio aquí o haz clic para seleccionar uno
+    <div class="loader" id="loader"></div>
+    <div class="check" id="check"></div>
+  </div>
+  <input type="file" id="fileInput" accept="audio/*" hidden multiple={false}/>
+
+  <div class="audio-info">
+    <!-- Ocultar los datos de tiempo y amplitudes -->
+    <p style="display: none;">Estado: <span id="status">Esperando archivo...</span></p>
+    <p style="display: none;">Tiempo Actual: <span id="currentTime">0.00</span>s</p>
+    <p style="display: none;">Duración: <span id="duration">0.00</span>s</p>
+    <p style="display: none;">Amplitud: <span id="avgAmplitude">0.00</span></p>
+    <div class="play-button-container">
+      <button id="playPauseButton"></button> 
+    </div>
+    <input type="range" id="timeSlider" min="0" max="100" value="0" />
+    <canvas id="visualizerCanvas"></canvas>
+  </div>
+</div>
+
+<style>
+.audio-processor {
+  border: 1px solid gray;
+  padding: 1rem;
+  margin: 1rem;
+  background: linear-gradient(to bottom, var(--color-top), var(--color-bottom));
+  transition: background 0.5s ease; /* Transición suave del color de fondo */
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed hsl(0, 0%, 100%); /* Color pastel */
+  padding: 1rem; /* Más grande */
+  text-align: center;
+  cursor: pointer;
+  background-color: hsl(240, 30%, 95%); /* Ligeramente diferente del fondo */
+  font-size: 1.2rem;
+  border-radius: 30px;
+  margin-bottom: .5rem;
+  position: relative; /* Para posicionar la animación */
+}
+
+.dropzone:hover {
+  background-color: hsl(240, 30%, 90%);
+}
+
+.audio-info {
+  margin-top: 1rem;
+}
+
+#visualizerCanvas {
+  width: 100%;
+  height: 200px;
+  margin-top: 1rem;
+}
+
+#timeSlider {
+  width: 100%;
+  margin-top: 1rem;
+  accent-color: black; /* Color de la barra de reproducción */
+}
+
+.play-button-container {
+  display: flex;
+  justify-content: center;
+}
+
+#playPauseButton {
+  margin-top: .5rem;
+  padding: 0.5rem 1rem;
+  background-color: hsl(0, 0%, 0%);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  width: 40px;
+  height: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M8 5v14l11-7z'/%3E%3C/svg%3E"); /* Icono de play */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 25px;
+}
+
+#playPauseButton.pause {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M6 19h4V5H6v14zm8-14v14h4V5h-4z'/%3E%3C/svg%3E"); /* Icono de pausa */
+}
+
+#playPauseButton:hover {
+  background-color: hsl(0, 0%, 0%);
+}
+
+/* Animación de carga */
+.loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 4px solid hsl(240, 30%, 80%);
+  border-top-color: hsl(0, 0%, 0%);
+  animation: spin 1s linear infinite;
+  display: none; /* Oculto por defecto */
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0); /* Empieza invisible */
+  width: 30px;
+  height: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234CAF50' d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); /* Icono de check verde */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 30px;
+  opacity: 0; /* Inicialmente transparente */
+  transition: opacity 0.5s ease, transform 0.5s ease; /* Transiciones suaves */
+  display: none;
+}
+
+.check.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1); /* Se muestra con tamaño normal */
+}
+</style>
+
+<script is:inline>
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const statusSpan = document.getElementById('status');
+    const currentTimeSpan = document.getElementById('currentTime');
+    const durationSpan = document.getElementById('duration');
+    const avgAmplitudeSpan = document.getElementById('avgAmplitude');
+    const timeSlider = document.getElementById('timeSlider');
+    const canvas = document.getElementById('visualizerCanvas');
+    const canvasCtx = canvas.getContext('2d');
+    const playPauseButton = document.getElementById('playPauseButton');
+    const loader = document.getElementById('loader');
+    const check = document.getElementById('check');
+    const audioProcessor = document.getElementById('audioProcessor');
+
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.8;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    let isPlaying = false;
+    let audioBuffer = null; // Almacenará el AudioBuffer completo
+    let source = null; // La fuente de audio actual
+    let songDuration = 0;
+    let startTime = 0;   // El momento en el que se inició la reproducción
+    let elapsedTime = 0; // El tiempo transcurrido en la canción
+
+    // Función para iniciar la reproducción
+    function playAudio() {
+        if (!audioBuffer) return;
+
+        // Detener la fuente existente si existe
+        if (source) {
+            source.disconnect();
+        }
+
+        // Crear una nueva fuente y configurar el buffer
+        source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        source.onended = () => {
+            // Este código se ejecutará cuando la canción termine naturalmente
+            if (elapsedTime >= songDuration) {
+                isPlaying = false;
+                playPauseButton.classList.remove('pause'); // Quitar la clase para mostrar el icono de play
+                statusSpan.textContent = 'Reproducción finalizada';
+                timeSlider.value = '0';
+                currentTimeSpan.textContent = '0.00';
+                elapsedTime = 0; // Reiniciar el tiempo transcurrido
+            }
+        };
+
+        // Calcular el tiempo de inicio basado en el tiempo transcurrido
+        startTime = audioContext.currentTime - elapsedTime;
+        source.start(0, elapsedTime);
+        isPlaying = true;
+        playPauseButton.classList.add('pause'); // Añadir la clase para mostrar el icono de pausa
+        statusSpan.textContent = 'Reproduciendo...';
+    }
+
+    //Botón de play/pausa
+    playPauseButton.addEventListener('click', () => {
+        if (!audioBuffer) {
+            fileInput.click(); // Abre el diálogo de selección de archivo
+            return;
+        }
+
+        if (isPlaying) {
+            // Pausar
+            elapsedTime = audioContext.currentTime - startTime;
+            audioContext.suspend();
+            source.stop();
+            isPlaying = false;
+            statusSpan.textContent = 'Pausado';
+            playPauseButton.classList.remove('pause'); // Quitar la clase para mostrar el icono de play
+        } else {
+            // Iniciar o reanudar
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    playAudio();
+                });
+            } else {
+                playAudio();
+            }
+        }
+    });
+
+    // Manejar la selección de archivos
+    fileInput.addEventListener('change', (event) => {
+        const files = event.target.files;
+        if (files.length > 1) {
+            alert('Por favor, selecciona solo un archivo a la vez.');
+            // Limpiar el input
+            fileInput.value = '';
+            return;
+        }
+
+        const file = files[0];
+        handleFile(file);
+    });
+
+    // Manejar el arrastrar y soltar
+    dropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropzone.style.backgroundColor = 'hsl(240, 30%, 90%)';
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.style.backgroundColor = 'hsl(240, 30%, 95%)';
+    });
+
+    dropzone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropzone.style.backgroundColor = 'hsl(240, 30%, 95%)';
+
+        const files = event.dataTransfer.files;
+        if (files.length > 1) {
+            alert('Por favor, arrastra solo un archivo a la vez.');
+            return;
+        }
+        const file = event.dataTransfer.files[0];
+        handleFile(file);
+    });
+
+    // Hacer que al hacer clic en el dropzone se abra el diálogo de selección de archivo
+    dropzone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    function handleFile(file) {
+        //Si hay una fuente de audio, detenerla
+        if (source) {
+            source.stop();
+            source.disconnect();
+            source = null;
+        }
+
+        // Mostrar la animación de carga
+        loader.style.display = 'block';
+
+        statusSpan.textContent = 'Cargando...';
+        const reader = new FileReader();
+
+        // Reiniciar variables
+        audioBuffer = null;
+        songDuration = 0;
+        startTime = 0;
+        elapsedTime = 0;
+
+        // Leer el archivo completo
+        reader.onload = (event) => {
+            const arrayBuffer = event.target.result;
+            audioContext.decodeAudioData(
+                arrayBuffer,
+                (decodedAudioBuffer) => {
+                    audioBuffer = decodedAudioBuffer;
+                    songDuration = audioBuffer.duration;
+                    durationSpan.textContent = songDuration.toFixed(2);
+                    timeSlider.max = songDuration;
+                    statusSpan.textContent = 'Listo para reproducir';
+
+                    // Actualizar el título de la página
+                    document.title = `Reproduciendo: ${file.name}`;
+
+                    // Ocultar la animación de carga y mostrar la palomita verde
+                    loader.style.display = 'none';
+                    check.classList.add('show');
+
+                    // Ocultar la palomita verde después de un tiempo
+                    setTimeout(() => {
+                        check.classList.remove('show');
+                    }, 1000);
+                },
+                (error) => {
+                    console.error('Error al decodificar audio:', error);
+                    statusSpan.textContent = 'Error al decodificar audio';
+                    // Ocultar la animación de carga en caso de error
+                    loader.style.display = 'none';
+                }
+            );
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Función de visualización
+    function visualize() {
+        requestAnimationFrame(visualize);
+
+        analyser.getByteFrequencyData(dataArray);
+
+        // Calcular amplitud promedio
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+        }
+        const avgAmplitude = (sum / bufferLength) / 255; // Normalizar a un valor entre 0 y 1
+
+        // Actualizar el color del contenedor en función de la amplitud
+        updateContainerColor(avgAmplitude);
+
+        // Actualizar el deslizador de tiempo y el tiempo actual
+        if (isPlaying) {
+            elapsedTime = audioContext.currentTime - startTime;
+            timeSlider.value = elapsedTime;
+            currentTimeSpan.textContent = elapsedTime.toFixed(2);
+        }
+
+        // Dibujar espectrograma
+        canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+            barHeight = dataArray[i];
+
+            const gradient = canvasCtx.createLinearGradient(x, canvas.height - barHeight / 2, x, canvas.height);
+            gradient.addColorStop(0, 'red');
+            gradient.addColorStop(0.5, 'yellow');
+            gradient.addColorStop(1, 'green');
+
+            canvasCtx.fillStyle = gradient;
+            canvasCtx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+
+            x += barWidth + 1;
+        }
+    }
+
+    // Función para actualizar el color del contenedor
+    function updateContainerColor(amp) {
+        const minHue = 180; // Azul
+        const maxHue = 400; // Rojo
+        const hue = minHue + (maxHue - minHue) * amp * 5; // Interpolar entre azul y rojo
+
+        const colorTop = `hsl(${hue}, 100%, 90%)`; // Color más claro en la parte superior
+        const colorBottom = `hsl(${hue}, 100%, 10%)`; // Color más oscuro en la parte inferior
+
+        // Establecer directamente el estilo de fondo con los colores calculados
+        audioProcessor.style.background = `linear-gradient(to bottom, ${colorTop}, ${colorBottom})`;
+    }
+
+    //Escuchar cambios en el slider
+    timeSlider.addEventListener('input', () => {
+        if (!audioBuffer) return;
+
+        // Actualizar el tiempo transcurrido y el tiempo actual basado en la posición del deslizador
+        elapsedTime = parseFloat(timeSlider.value);
+        currentTimeSpan.textContent = elapsedTime.toFixed(2);
+
+        // Actualizar startTime para la correcta sincronización al reanudar
+        startTime = audioContext.currentTime - elapsedTime;
+
+        // Si está en reproducción, detener y reiniciar en la nueva posición
+        if (isPlaying) {
+            source.stop();
+            playAudio();
+        }
+    });
+
+    function resetPlayer() {
+        // Detener la fuente de audio si existe
+        if (source) {
+            source.stop();
+            source.disconnect();
+            source = null;
+        }
+    
+        // Pausar el audioContext si está en ejecución
+        if (audioContext.state === 'running') {
+            audioContext.suspend();
+        }
+    
+        // Restablecer variables
+        isPlaying = false;
+        audioBuffer = null;
+        songDuration = 0;
+        startTime = 0;
+        elapsedTime = 0;
+    
+        // Restablecer la interfaz de usuario
+        playPauseButton.classList.remove('pause'); // Quitar la clase pause (icono)
+        statusSpan.textContent = 'Esperando archivo...';
+        currentTimeSpan.textContent = '0.00';
+        durationSpan.textContent = '0.00';
+        timeSlider.value = '0';
+    }
+
+    async function loadDefaultSong() {
+        statusSpan.textContent = 'Cargando canción por defecto...';
+        loader.style.display = 'block';
+      
+        try {
+          const response = await fetch('https://ia800208.us.archive.org/2/items/BachCelloSuiteNo.1PreludeYoYoMa/Bach%20Cello%20Suite%20No.1%20-%20Prelude%20(Yo-Yo%20Ma).mp3');
+          const arrayBuffer = await response.arrayBuffer();
+      
+          audioContext.decodeAudioData(arrayBuffer, (decodedAudioBuffer) => {
+            audioBuffer = decodedAudioBuffer;
+            songDuration = audioBuffer.duration;
+            durationSpan.textContent = songDuration.toFixed(2);
+            timeSlider.max = songDuration;
+            statusSpan.textContent = 'Canción por defecto cargada';
+            document.title = `Reproduciendo: Bach Cello Suite No.1 - Prelude (Yo-Yo Ma)`;
+            loader.style.display = 'none';
+          }, (error) => {
+            console.error('Error al decodificar audio:', error);
+            statusSpan.textContent = 'Error al cargar la canción por defecto';
+            loader.style.display = 'none';
+          });
+        } catch (error) {
+          console.error('Error al cargar la canción por defecto:', error);
+          statusSpan.textContent = 'Error al cargar la canción por defecto';
+          loader.style.display = 'none';
+        }
+      }
+      
+      // Llamar a la función para cargar la canción por defecto al inicio
+      loadDefaultSong();
+
+    visualize(); // Iniciar la visualización
+</script>

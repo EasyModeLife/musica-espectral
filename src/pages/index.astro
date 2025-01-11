@@ -1,11 +1,30 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import AudioProcessor from '../components/AudioProcessor.astro';
+import Header from '../components/Header.astro';
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Audio Processor">
+  <div class="background">
+    <Header />
+    <main>
+      <AudioProcessor />
+    </main>
+  </div>
 </Layout>
+
+<style>
+  .background {
+    background-color: hsl(39, 100%, 95%); /* Color blanco concha */
+    min-height: 100vh; /* Asegura que el fondo cubra toda la altura de la pantalla */
+    display: flex;
+    flex-direction: column;
+  }
+
+  main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1; /* Permite que el main ocupe el espacio disponible */
+  }
+</style>
